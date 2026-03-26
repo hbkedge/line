@@ -104,6 +104,35 @@
       opacity: 0.6;
       pointer-events: none;
     }
+
+    /* 新增拍照區域樣式 */
+    .photo-area {
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    #photoPreview {
+      width: 100%;
+      max-height: 200px;
+      object-fit: contain;
+      border-radius: 8px;
+      margin-top: 10px;
+      display: none;
+      border: 1px solid #eee;
+    }
+
+    .file-btn {
+      background: #f8f9fa;
+      border: 1px solid #ddd;
+      color: #333;
+      padding: 10px;
+      font-size: 14px;
+      cursor: pointer;
+      display: block;
+      width: 100%;
+      box-sizing: border-box;
+      border-radius: 10px;
+    }
   </style>
 </head>
 
@@ -115,6 +144,13 @@
     <div class="row">
       <label for="note">備註</label>
       <textarea id="note" placeholder="例如：外出拜訪客戶"></textarea>
+    </div>
+    <div class="photo-area">
+      <label class="file-btn">
+        📷 拍攝照片 / 選擇圖片
+        <input type="file" id="photoInput" accept="image/*" capture="camera" style="display:none;" onchange="previewImage(this)">
+      </label>
+      <img id="photoPreview" src="" alt="預覽圖">
     </div>
     <button class="btn-in" onclick="submitPunch('clock_in')">上班打卡</button>
     <button class="btn-out" onclick="submitPunch('clock_out')">下班打卡</button>
@@ -218,6 +254,30 @@
       });
     }
 
+    function previewImage(input) {
+      const preview = document.getElementById('photoPreview');
+      if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          preview.src = e.target.result;
+          preview.style.display = 'block';
+        };
+        reader.readAsDataURL(input.files[0]);
+      } else {
+        preview.src = "";
+        preview.style.display = 'none';
+      }
+    }
+
+    function toBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+      });
+    }
+
     async function submitPunch(action) {
       try {
         setLoading(true);
@@ -229,6 +289,14 @@
           throw new Error('請先修改原始碼，填寫真正的 GAS_API_URL！');
         }
 
+        const note = document.getElementById('note').value.trim();
+        const photoInput = document.getElementById('photoInput');
+        let imageData = null;
+
+        if (photoInput.files && photoInput.files[0]) {
+          imageData = await toBase64(photoInput.files[0]);
+        }
+
         const payload = {
           action,
           userId: profile.userId,
@@ -237,7 +305,8 @@
           pictureUrl: profile.pictureUrl,
           latitude: currentPosition.latitude || '',
           longitude: currentPosition.longitude || '',
-          note: document.getElementById('note').value.trim()
+          note: note,
+          imageData: imageData // 新增圖片 Base64 資料
         };
 
         const response = await fetch(GAS_API_URL, {
